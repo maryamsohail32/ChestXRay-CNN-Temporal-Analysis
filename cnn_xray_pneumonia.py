@@ -27,12 +27,12 @@ from sklearn.model_selection import train_test_split
 np.random.seed(42)
 tf.random.set_seed(42)
 
-# ─── KEY CHANGE: smaller image + fewer samples = much faster ───
-IMG_SIZE   = 64    # was 224 — 64px trains ~12x faster, same accuracy
+# --- KEY CHANGE: smaller image + fewer samples = much faster ---
+IMG_SIZE = 64    # was 224 — 64px trains ~12x faster, same accuracy
 BATCH_SIZE = 32
-EPOCHS     = 20
-LR         = 1e-3
-N_SAMPLES  = 1200  # was 2000 — enough for good results
+EPOCHS = 20
+LR = 1e-3
+N_SAMPLES = 1200  # was 2000 — enough for good results
 
 print("=" * 55)
 print("  Chest X-Ray CNN Pipeline  —  FAST MODE")
@@ -45,7 +45,7 @@ print(f"  Samples      : {N_SAMPLES}")
 print("  Est. time    : ~3-5 minutes on CPU")
 print("=" * 55)
 
-# ─── Synthetic X-ray generator ────────────────────────────────
+# --- Synthetic X-ray generator --------------------------------
 def generate_xray_dataset(n, sz, seed=42):
     rng = np.random.RandomState(seed)
     X = np.zeros((n, sz, sz, 1), dtype=np.float32)
@@ -81,7 +81,7 @@ print("\n[1/6] Generating dataset...")
 X, y = generate_xray_dataset(N_SAMPLES, IMG_SIZE)
 print(f"      Done — {X.shape}, Normal={np.sum(y==0)}, Pneumonia={np.sum(y==1)}")
 
-# ─── Temporal (weekly) splits ──────────────────────────────────
+# --- Temporal (weekly) splits ----------------------------------
 ws = N_SAMPLES // 4
 week_data = [(X[i*ws:(i+1)*ws], y[i*ws:(i+1)*ws]) for i in range(4)]
 Xtr = np.concatenate([week_data[0][0], week_data[1][0]])
@@ -90,14 +90,14 @@ X_train, X_val, y_train, y_val = train_test_split(
     Xtr, ytr, test_size=0.2, random_state=42, stratify=ytr)
 print(f"      Train:{len(X_train)}  Val:{len(X_val)}  Week3:{ws}  Week4:{ws}")
 
-# ─── Augmentation ─────────────────────────────────────────────
+# --- Augmentation ---------------------------------------------
 aug = keras.Sequential([
     layers.RandomFlip("horizontal"),
     layers.RandomRotation(0.08),
     layers.RandomZoom(0.10),
 ])
 
-# ─── 3 Architectures ──────────────────────────────────────────
+# --- 3 Architectures ------------------------------------------
 def build_baseline(shape=(64, 64, 1)):
     inp = keras.Input(shape=shape)
     x = aug(inp)
@@ -147,7 +147,7 @@ def build_residual(shape=(64, 64, 1)):
     x = layers.Dropout(0.5)(x)
     return keras.Model(inp, layers.Dense(1, activation='sigmoid')(x), name='Residual_CNN')
 
-# ─── Training ─────────────────────────────────────────────────
+# --- Training -------------------------------------------------
 def train(model, opt, name):
     model.compile(optimizer=opt, loss='binary_crossentropy',
                   metrics=['accuracy', keras.metrics.AUC(name='auc')])
@@ -163,9 +163,9 @@ def train(model, opt, name):
     return h
 
 configs = [
-    ("Baseline CNN",   build_baseline(),  keras.optimizers.Adam(LR)),
-    ("Deep CNN + L2",  build_deep_l2(),   keras.optimizers.Adam(LR)),
-    ("Residual CNN",   build_residual(),  keras.optimizers.SGD(LR*0.1, momentum=0.9)),
+    ("Baseline CNN",   build_baseline(),   keras.optimizers.Adam(LR)),
+    ("Deep CNN + L2",  build_deep_l2(),    keras.optimizers.Adam(LR)),
+    ("Residual CNN",   build_residual(),   keras.optimizers.SGD(LR*0.1, momentum=0.9)),
 ]
 
 print("\n[2/6] Training 3 architectures...")
@@ -177,7 +177,7 @@ for name, model, opt in configs:
     trained[name] = model
     print(f"  Done — best val_acc: {max(h.history['val_accuracy']):.4f}")
 
-# ─── Evaluation ───────────────────────────────────────────────
+# --- Evaluation -----------------------------------------------
 def evalu(m, Xt, yt):
     yp = m.predict(Xt, verbose=0).flatten()
     yd = (yp >= 0.5).astype(int)
@@ -201,7 +201,7 @@ best_name = max(results, key=lambda k: results[k]['auc'])
 best_model = trained[best_name]
 print(f"\n  Best model: {best_name}")
 
-# ─── Temporal analysis ────────────────────────────────────────
+# --- Temporal analysis ----------------------------------------
 print("\n[4/6] Temporal analysis (4 weekly batches)...")
 wnames = ['Week 1 (Train)', 'Week 2 (Train)', 'Week 3 (Val)', 'Week 4 (Test)']
 temporal = {}
@@ -210,7 +210,7 @@ for i, (Xw, yw) in enumerate(week_data):
     temporal[wnames[i]] = r
     print(f"  {wnames[i]:<22} Acc={r['acc']:.4f}  AUC={r['auc']:.4f}")
 
-# ─── FIGURES ──────────────────────────────────────────────────
+# --- FIGURES --------------------------------------------------
 print("\n[5/6] Generating figures...")
 COLORS = {'Baseline CNN': '#2196F3', 'Deep CNN + L2': '#FF5722', 'Residual CNN': '#4CAF50'}
 plt.rcParams.update({'font.family': 'DejaVu Sans', 'font.size': 10})
@@ -316,7 +316,7 @@ plt.tight_layout()
 plt.savefig('fig4_model_comparison.png', dpi=150, bbox_inches='tight')
 plt.close(); print("    fig4 saved")
 
-# ─── Final summary ────────────────────────────────────────────
+# --- Final summary --------------------------------------------
 print("\n[6/6] Summary")
 print("=" * 55)
 print(f"{'Model':<22} {'Acc':>6} {'AUC':>6} {'Sens':>6} {'Spec':>6}")
@@ -333,4 +333,6 @@ print("   fig1_training_curves.png")
 print("   fig2_confusion_roc.png")
 print("   fig3_temporal.png")
 print("   fig4_model_comparison.png")
+
+# Explicitly save the generated weights down to the repository layout workspace
 best_model.save("best_model.h5")
