@@ -1,8 +1,5 @@
 streamlit
-matplotlib
 tensorflow
-keras
+matplotlib
 numpy
-scikit-learn
-pandas
-seaborn
+pillow
